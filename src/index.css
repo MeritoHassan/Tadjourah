@@ -9,3 +9,9 @@
 .btn-subtle { @apply bg-white/70 hover:bg-white border border-indigo-100; }
 .pill { @apply px-2 py-0.5 rounded-full text-xs font-semibold; }
 .logo-grad { background: linear-gradient(90deg, #4f46e5, #7c3aed); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
