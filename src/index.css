@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* UI helpers */
+.card { @apply bg-white/80 backdrop-blur border border-white/60 shadow-md rounded-2xl; }
+.btn { @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl transition; }
+.btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+.btn-subtle { @apply bg-white/70 hover:bg-white border border-indigo-100; }
+.pill { @apply px-2 py-0.5 rounded-full text-xs font-semibold; }
+.logo-grad { background: linear-gradient(90deg, #4f46e5, #7c3aed); -webkit-background-clip: text; background-clip: text; color: transparent; }
