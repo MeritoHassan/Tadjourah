@@ -26,18 +26,19 @@ const GUEST_EMAILS = (import.meta.env.VITE_GUEST_EMAILS || "")
   .split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
 const ALLOWED = new Set([ADMIN_EMAIL, ...GUEST_EMAILS]);
 
-function isAdminEmail(email){ return (email||"").toLowerCase() === ADMIN_EMAIL; }
+function isAdminEmail(addr){ return (addr || "").toLowerCase() === ADMIN_EMAIL; }
 
 async function guardSession(session, supabase) {
   if (!session) return null;
-  const email = (session.user?.email || "").toLowerCase();
-  if (!ALLOWED.has(email)) {
+  const userEmail = (session.user?.email ?? "").toLowerCase();
+  if (!ALLOWED.has(userEmail)) {
     await supabase.auth.signOut();
     alert("Accès refusé : email non autorisé.");
     return null;
   }
   return session;
 }
+
 
 
 
@@ -134,7 +135,11 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
       setLoading(true);
       try {
         const s = await getSettings();
-        if (s) setSettings(s); else await upsertSettings(DEFAULT_SETTINGS);
+        if (s) setSettings(s); 
+        else {
+          if (isAdmin) await upsertSettings(DEFAULT_SETTINGS);
+          else setSettings(DEFAULT_SETTINGS); // invité : local only
+        }
         const t = await listTeam(); setTeam(t);
         await refreshRecords(current.year, current.month0);
       } catch (e) {
@@ -160,9 +165,10 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
 
   // 3) Auto-enregistrer les settings (debounce léger)
   useEffect(() => {
+    if (!isAdmin) return;  
     const t = setTimeout(() => { upsertSettings(settings).catch(console.error); }, 600);
     return () => clearTimeout(t);
-  }, [settings]);
+  }, [settings, isAdmin]);
 
   // 4) Formulaire de saisie
   const [form, setForm] = useState({ dateISO: new Date().toISOString().slice(0,10), name:"", status:"Présent", reason:"", minutesLate:0, justified:false, comment:"" });

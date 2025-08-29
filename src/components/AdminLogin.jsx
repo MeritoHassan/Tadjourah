@@ -3,17 +3,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import Logo from "./Logo.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 
+// ---- Config depuis les variables d'env
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").trim().toLowerCase();
 const GUEST_EMAILS = (import.meta.env.VITE_GUEST_EMAILS || "")
-  .split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
-const ALLOWED = new Set([ADMIN_EMAIL, ...GUEST_EMAILS]);
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+// ⚠️ Ne mets pas de valeur vide dans l'allowlist
+const ALLOWED = new Set([ ...GUEST_EMAILS, ...(ADMIN_EMAIL ? [ADMIN_EMAIL] : []) ]);
 const norm = (s) => (s || "").trim().toLowerCase();
 
-// ...
-const isAllowedEmail = ALLOWED.has(norm(email));
-const isAdmin = norm(email) === ADMIN_EMAIL;
-
-// Blob animé d'arrière-plan
+// Petit “blob” animé d'arrière-plan
 function Blob({ className = "", color = "rgba(99,102,241,0.6)" }) {
   return (
     <motion.div
@@ -35,30 +36,41 @@ function Blob({ className = "", color = "rgba(99,102,241,0.6)" }) {
 }
 
 export default function AdminLogin() {
+  // ---- États du formulaire
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const pwdRef = useRef(null);
 
-  const isAllowedEmail = !!ADMIN_EMAIL && norm(email) === ADMIN_EMAIL;
+  // ✅ Calcules DANS le composant (après le useState)
+  const normalized = norm(email);
+  const isAllowedEmail = ALLOWED.has(normalized);
+  const isAdmin = ADMIN_EMAIL && normalized === ADMIN_EMAIL;
 
+  // Si email non autorisé → on efface le mdp
   useEffect(() => { if (!isAllowedEmail) setPassword(""); }, [isAllowedEmail]);
+  // Quand email autorisé, focus sur le mdp
   useEffect(() => { if (isAllowedEmail) pwdRef.current?.focus(); }, [isAllowedEmail]);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!isAllowedEmail) { setError("Accès réservé : cet email n'est pas autorisé."); return; }
+    // Blocage immédiat si email non autorisé (pas d'appel Supabase)
+    if (!isAllowedEmail) {
+      setError("Accès réservé : cet email n'est pas autorisé.");
+      return;
+    }
 
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({
-        email: norm(email),
+        email: normalized,
         password,
       });
-      if (error) throw error; // ex: Invalid login credentials
+      if (error) throw error; // ex: "Invalid login credentials"
+      // onAuthStateChange dans App.jsx s'occupera du reste
     } catch (err) {
       setError(err.message || "Erreur de connexion.");
     } finally {
@@ -88,9 +100,9 @@ export default function AdminLogin() {
           className="card max-w-md w-full p-6 bg-white/80 backdrop-blur-xl border border-indigo-200/40 shadow-2xl rounded-2xl"
         >
           <div className="flex items-center justify-center mb-4">
-            <Logo className="scale-[0.95]" /> {/* logo lisible sur fond clair */}
+            <Logo className="scale-[0.95]" />
           </div>
-          <h1 className="text-xl font-bold text-slate-800 text-center">Connexion administrateur</h1>
+          <h1 className="text-xl font-bold text-slate-800 text-center">Connexion {isAdmin ? "administrateur" : "invité"}</h1>
           <p className="text-xs text-slate-500 text-center mb-6">Accès réservé. Identifiez-vous.</p>
 
           {!ADMIN_EMAIL && (
@@ -101,7 +113,7 @@ export default function AdminLogin() {
 
           <form onSubmit={submit} className="space-y-3" onKeyDown={(e)=>{ if(e.key==="Enter" && !isAllowedEmail) e.preventDefault(); }}>
             <label className="block text-sm">
-              Email (admin)
+              Email (autorisé)
               <motion.input
                 whileFocus={{ scale: 1.01 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -114,12 +126,14 @@ export default function AdminLogin() {
               />
             </label>
 
+            {/* Message si email non autorisé */}
             {!isAllowedEmail && ADMIN_EMAIL && email && (
               <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-rose-600 text-sm">
                 Accès refusé : cet email n'est pas autorisé.
               </motion.div>
             )}
 
+            {/* Bloc mot de passe + bouton, seulement si email autorisé */}
             <AnimatePresence initial={false} mode="wait">
               {isAllowedEmail && (
                 <motion.div key="pwdblock" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="space-y-3">
