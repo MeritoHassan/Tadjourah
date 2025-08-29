@@ -4,7 +4,14 @@ import Logo from "./Logo.jsx";
 import { supabase } from "../lib/supabaseClient.js";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").trim().toLowerCase();
+const GUEST_EMAILS = (import.meta.env.VITE_GUEST_EMAILS || "")
+  .split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
+const ALLOWED = new Set([ADMIN_EMAIL, ...GUEST_EMAILS]);
 const norm = (s) => (s || "").trim().toLowerCase();
+
+// ...
+const isAllowedEmail = ALLOWED.has(norm(email));
+const isAdmin = norm(email) === ADMIN_EMAIL;
 
 // Blob animé d'arrière-plan
 function Blob({ className = "", color = "rgba(99,102,241,0.6)" }) {

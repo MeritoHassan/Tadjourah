@@ -22,17 +22,23 @@ const GlossySection = ({ title, children, className = "" }) => (
 
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
+const GUEST_EMAILS = (import.meta.env.VITE_GUEST_EMAILS || "")
+  .split(",").map(s=>s.trim().toLowerCase()).filter(Boolean);
+const ALLOWED = new Set([ADMIN_EMAIL, ...GUEST_EMAILS]);
+
+function isAdminEmail(email){ return (email||"").toLowerCase() === ADMIN_EMAIL; }
 
 async function guardSession(session, supabase) {
   if (!session) return null;
   const email = (session.user?.email || "").toLowerCase();
-  if (ADMIN_EMAIL && email !== ADMIN_EMAIL) {
+  if (!ALLOWED.has(email)) {
     await supabase.auth.signOut();
-    alert("Accès refusé : ce compte n'est pas autorisé.");
+    alert("Accès refusé : email non autorisé.");
     return null;
   }
   return session;
 }
+
 
 
 
@@ -82,11 +88,18 @@ export default function App() {
   }, []);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Chargement…</div>;
-  return session ? <PrivateApp /> : <AdminLogin />;
+  return session  
+  ? <PrivateApp isAdmin={isAdminEmail(session.user?.email)} />
+  : <AdminLogin />;
+
+
+
 }
 
 /* =============== App privée : lecture/écriture Supabase =============== */
-function PrivateApp() {
+function PrivateApp({ isAdmin }) {
+
+  const canEdit = isAdmin;
   // 0) Defaults UI (si aucun "settings" en base)
   const DEFAULT_SETTINGS = { startYear: 2025, startMonth0: 8, tardyThreshold: 3, warnThreshold: 2, excludeJustified: false, 
   reasons: ["Maladie","RDV","Justifiée","Non justifiée","Transport","Grève","Familial","Autre"], 
