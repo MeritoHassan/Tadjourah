@@ -1,3 +1,4 @@
+import Layout from "./components/Layout.jsx";
 import React, { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, LabelList } from "recharts";
 import { motion } from "framer-motion";
@@ -5,6 +6,20 @@ import AdminLogin from "./components/AdminLogin.jsx";
 import Logo from "./components/Logo.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { getSettings, upsertSettings, listTeam, addTeamMember, updateTeamMember, deleteTeamMember, listRecordsBetween, addRecord, deleteRecord } from "./lib/db.js";
+
+// Section glossy (verre)
+const GlossySection = ({ title, children, className = "" }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    transition={{ duration: 0.35 }}
+    className={`glass rounded-2xl p-4 ${className}`}
+  >
+    <div className="text-sm font-semibold text-slate-200 mb-3">{title}</div>
+    {children}
+  </motion.div>
+);
+
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
 
@@ -18,6 +33,7 @@ async function guardSession(session, supabase) {
   }
   return session;
 }
+
 
 
 // Jours en français (0=dimanche … 6=samedi) – même ordre que Date.getDay()
@@ -54,10 +70,14 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) { setSession(session); setLoading(false); }
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const s = await guardSession(session, supabase);
+      if (mounted) { setSession(s); setLoading(false); }
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const s = await guardSession(session, supabase);
+      setSession(s);
+    });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, []);
 
@@ -181,20 +201,28 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Chargement…</div>;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-violet-50 text-slate-900">
-      <header className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Logo variant="onDark" />
-          <div className="flex items-center gap-3">
-            <span className="text-xs opacity-90">Admin</span>
-            <button onClick={() => supabase.auth.signOut()} className="btn bg-white/20 hover:bg-white/30 text-white">Se déconnecter</button>
-          </div>
-        </div>
-      </header>
+    <div className="app-bg">
+      <header className="sticky top-0 z-30">
+  <div className="glass px-6 py-3">
+    <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <Logo />  {/* variante par défaut lisible sur fond clair verre */}
+        <span className="badge ml-2 hidden sm:inline-flex">Admin</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={() => supabase.auth.signOut()}
+                className="glass rounded-xl px-3 py-2 text-slate-100 hover:bg-white/10">
+          Se déconnecter
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
 
       <main className="px-6 py-6 max-w-7xl mx-auto grid grid-cols-1 2xl:grid-cols-3 gap-6">
         <div className="flex flex-col gap-6 2xl:col-span-1">
-          <Section title="Paramètres">
+          <GlossySection title="Paramètres">
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">Année de départ
                 <input type="number" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.startYear}
@@ -237,9 +265,9 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
                   onChange={(e)=>setSettings(s=>({ ...s, excludeJustified: e.target.checked }))}/> Exclure les justifiés du calcul
               </label>
             </div>
-          </Section>
+          </GlossySection>
 
-          <Section title="Motifs (personnalisables)">
+          <GlossySection title="Motifs (personnalisables)">
             <div className="flex flex-wrap gap-2 mb-3">
               {settings.reasons.map((r, idx) => (
                 <Chip key={idx} className="bg-indigo-50 text-indigo-700 border border-indigo-100">
@@ -250,17 +278,17 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
               ))}
             </div>
             <AddReason onAdd={(label)=>label && setSettings(s=>({ ...s, reasons:[...s.reasons, label] }))} />
-          </Section>
+          </GlossySection>
 
-          <Section title="Équipe">
+          <GlossySection title="Équipe">
             <TeamEditor team={team}
               onAdd={addMember}
               onUpdate={(idx, patch) => updateMember(team[idx].id, patch)}
               onDelete={(idx) => deleteMember(team[idx].id)}
             />
-          </Section>
+          </GlossySection>
 
-          <Section title="Export / Import (JSON local)">
+          <GlossySection title="Export / Import (JSON local)">
             <div className="flex items-center gap-2">
               <IconBtn title="Exporter JSON" onClick={()=>{
                 const blob=new Blob([JSON.stringify({settings,team,records},null,2)],{type:"application/json"});
@@ -272,16 +300,16 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
                   onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(String(r.result)); if(obj.settings) setSettings(obj.settings); if(obj.team) obj.team.forEach(async m=>await addTeamMember(m)); if(obj.records) alert("Import des enregistrements via Supabase à faire au cas par cas."); }catch{ alert("Fichier invalide"); } }; r.readAsText(f); e.currentTarget.value=""; }}/>
               </label>
             </div>
-          </Section>
+          </GlossySection>
         </div>
 
         <div className="flex flex-col gap-6 2xl:col-span-2">
-          <Section title="Saisie d'un pointage">
+          <GlossySection title="Saisie d'un pointage">
             <AddRecordForm form={form} setForm={setForm} names={names} reasons={settings.reasons} onSubmit={submit}
               canSubmit={canSubmit} />
-          </Section>
+          </GlossySection>
 
-          <Section title={`Liste des enregistrements — ${current.label}`}>
+          <GlossySection title={`Liste des enregistrements — ${current.label}`}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <label className="text-sm">Mois/année :
                 <select className="ml-2 rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={selectedMonthIdx} onChange={(e)=>setSelectedMonthIdx(Number(e.target.value))}>
@@ -290,10 +318,10 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
               </label>
             </div>
             <RecordsTable records={filtered} onDelete={removeRecord} />
-          </Section>
+          </GlossySection>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Section title={`Tableau de bord — ${current.label}`} className="xl:col-span-2">
+            <GlossySection title={`Tableau de bord — ${current.label}`} className="xl:col-span-2">
               <Dashboard stats={statsByName} warnThreshold={settings.warnThreshold} />
               <div className="h-72 mt-6">
                 <ResponsiveContainer width="100%" height="100%">
@@ -308,9 +336,9 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </Section>
+            </GlossySection>
 
-            <Section title="Alertes (≥ seuil)">
+            <GlossySection title="Alertes (≥ seuil)">
               {alerts.length === 0 ? (<p className="text-sm text-slate-600">Aucune alerte pour ce mois.</p>) : (
                 <ul className="space-y-2">
                   {alerts.map((a) => (
@@ -321,7 +349,7 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
                   ))}
                 </ul>
               )}
-            </Section>
+            </GlossySection>
           </div>
         </div>
       </main>
