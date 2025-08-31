@@ -1,3 +1,4 @@
+import AbleTheme from "./pages/AbleTheme.jsx";
 import Layout from "./components/Layout.jsx";
 import React, { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, LabelList } from "recharts";
@@ -6,19 +7,23 @@ import AdminLogin from "./components/AdminLogin.jsx";
 import Logo from "./components/Logo.jsx";
 import { supabase } from "./lib/supabaseClient.js";
 import { getSettings, upsertSettings, listTeam, addTeamMember, updateTeamMember, deleteTeamMember, listRecordsBetween, addRecord, deleteRecord, listCategories, addCategory, deleteCategory } from "./lib/db.js";
+import { Tag, Clock, History as HistoryIcon, ArrowUp } from "lucide-react";
+
 
 // Section glossy (verre)
-const GlossySection = ({ title, children, className = "" }) => (
+const GlossySection = ({ title, children, className = "", ...rest }) => (
   <motion.div
     initial={{ opacity: 0, y: 12, scale: 0.98 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ duration: 0.35 }}
     className={`glass rounded-2xl p-4 ${className}`}
+    {...rest} // ⬅️ permet id=, style=, etc.
   >
     <div className="text-sm font-semibold text-slate-200 mb-3">{title}</div>
     {children}
   </motion.div>
 );
+
 
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || "").toLowerCase();
@@ -253,6 +258,14 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
     </button>
   </div>
 </nav>
+<nav className="max-w-7xl mx-auto px-6 pt-4">
+  <div className="flex gap-2">
+    <button onClick={()=>setView("attendance")} className={`glass rounded-xl px-3 py-2 text-sm ${view==="attendance"?"bg-white/10":"hover:bg-white/10"}`}>Pointage</button>
+    <button onClick={()=>setView("categories")} className={`glass rounded-xl px-3 py-2 text-sm ${view==="categories"?"bg-white/10":"hover:bg-white/10"}`}>Catégories</button>
+    <button onClick={()=>setView("able")} className={`glass rounded-xl px-3 py-2 text-sm ${view==="able"?"bg-white/10":"hover:bg-white/10"}`}>Thème “Able”</button>
+  </div>
+</nav>
+
 
 
 {view === "attendance" ? (
@@ -396,7 +409,10 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
   <main className="px-6 py-6 max-w-7xl mx-auto">
     <CategoriesPage isAdmin={isAdmin} settings={settings} />
   </main>
-)}
+)}: (
+  /* Thème copie visuelle */
+  <AbleTheme/>
+)
 
 
 
@@ -596,6 +612,32 @@ function CategoriesPage({ isAdmin, settings }) {
     finally { setLoading(false); }
   }
 
+  // --- MENU FLOTTANT (scrollspy) ---
+const sec = [
+  { id: "cat-create",  label: "Créer",     icon: Tag },
+  { id: "cat-history", label: "Historique",icon: HistoryIcon },
+];
+
+const [activeId, setActiveId] = useState(sec[0].id);
+
+// Surveille les sections pour surligner la section visible
+useEffect(() => {
+  const obs = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) setActiveId(e.target.id); });
+    },
+    { rootMargin: "-20% 0px -60% 0px", threshold: 0.1 }
+  );
+  sec.forEach(({id}) => { const el = document.getElementById(id); if (el) obs.observe(el); });
+  return () => obs.disconnect();
+}, []);
+
+const go = (id) => {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+
   async function onAdd() {
     if (!isAdmin) { alert("Mode invité : lecture seule"); return; }
     if (!dateISO) return alert("Choisis une date de séance.");
@@ -615,7 +657,7 @@ function CategoriesPage({ isAdmin, settings }) {
 
   return (
     <div className="space-y-6">
-      <GlossySection title="Créer une catégorie (par séance)">
+      <GlossySection id="cat-create" title="Créer une catégorie (par séance)">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <label className="text-sm">
             Type
@@ -646,7 +688,7 @@ function CategoriesPage({ isAdmin, settings }) {
         </div>
       </GlossySection>
 
-      <GlossySection title="Historique des catégories">
+      <GlossySection id="cat-history" className="scroll-mt-28" title="Historique des catégories">
         {loading ? <div className="text-sm text-slate-300/80">Chargement…</div> : (
           rows.length === 0 ? <div className="text-sm text-slate-300/80">Aucune donnée.</div> : (
             <div className="overflow-auto border rounded-2xl">
@@ -680,6 +722,44 @@ function CategoriesPage({ isAdmin, settings }) {
           )
         )}
       </GlossySection>
+
+        {/* Menu latéral (desktop) */}
+<div className="hidden lg:block fixed right-6 top-32 z-40 w-56">
+  <div className="glass rounded-2xl p-2">
+    {sec.map(({id, label, icon:Icon}) => (
+      <button
+        key={id}
+        onClick={()=>go(id)}
+        className={`nav-item w-full rounded-xl px-3 py-2 mb-1 flex items-center justify-between hover:bg-white/10 ${activeId===id ? "active" : ""}`}
+      >
+        <span className="flex items-center gap-2"><Icon size={16} /> {label}</span>
+        {activeId===id && <span className="badge">●</span>}
+      </button>
+    ))}
+    <div className="border-t border-white/10 my-2" />
+    <button onClick={()=>window.scrollTo({top:0, behavior:"smooth"})}
+            className="nav-item w-full rounded-xl px-3 py-2 flex items-center gap-2 hover:bg-white/10">
+      <ArrowUp size={16}/> Haut de page
+    </button>
+  </div>
+</div>
+
+{/* Dock bas (mobile) */}
+<div className="lg:hidden fixed bottom-4 inset-x-0 z-40 flex justify-center">
+  <div className="glass rounded-full px-2 py-2 flex gap-2">
+    {sec.map(({id, label}) => (
+      <button
+        key={id}
+        onClick={()=>go(id)}
+        className={`rounded-full px-3 py-2 text-sm ${activeId===id ? "bg-white/10" : "hover:bg-white/10"}`}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+</div>
+
+
     </div>
   );
 }
@@ -697,3 +777,4 @@ function suggestNextMeetingDate(weekday){ // weekday: 0=dimanche … 6=samedi
   const target = new Date(today); target.setDate(today.getDate() + delta);
   return target.toISOString().slice(0,10);
 }
+v

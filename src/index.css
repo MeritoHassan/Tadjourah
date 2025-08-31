@@ -90,5 +90,46 @@
     border-color:rgba(99,102,241,.4);
   }
   
+  /* === Thème glossy dark (style "Able") === */
+.theme-neo {
+    /* dégradé profond bleu/violet */
+    @apply min-h-screen text-slate-200 bg-gradient-to-br;
+    background-image:
+      radial-gradient(1200px 600px at 80% -20%, rgba(124,58,237,0.25), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(59,130,246,0.22), transparent 60%),
+      linear-gradient(135deg, #0b1022 0%, #121737 55%, #1a1440 100%);
+  }
+  
+  .glass-dark {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow:
+      0 8px 30px rgba(0,0,0,.35),
+      inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+  }
+  
+  .card-neo { @apply glass-dark p-4; }
+  .card-neo-tight { @apply glass-dark p-3; }
+  
+  .btn-neo      { @apply inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/20 transition; }
+  .input-neo    { @apply rounded-xl bg-white/5 border border-white/10 outline-none px-3 py-2 text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-300/30; }
+  .badge-neo    { @apply px-2 py-0.5 rounded-full text-[11px] bg-white/10 border border-white/10; }
+  .nav-neo      { @apply text-slate-300 hover:text-white transition; }
+  .nav-neo.active { @apply text-white; }
+  
+  /* chips statuts */
+  .chip { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium border; }
+  .chip.green  { @apply bg-emerald-500/15 border-emerald-400/30 text-emerald-300; }
+  .chip.orange { @apply bg-amber-500/15  border-amber-400/30  text-amber-300; }
+  .chip.red    { @apply bg-rose-500/15   border-rose-400/30   text-rose-300; }
+  .chip.blue   { @apply bg-sky-500/15    border-sky-400/30    text-sky-300; }
+  
+  /* petites utilitaires */
+  .shadow-neo  { box-shadow: 0 12px 40px rgba(0,0,0,.45); }
+  .table-neo thead tr { @apply bg-white/5; }
+  .table-neo td, .table-neo th { @apply p-2 text-sm; }
   
   
