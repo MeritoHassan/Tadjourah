@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import AdminLogin from "./components/AdminLogin.jsx";
 import Logo from "./components/Logo.jsx";
 import { supabase } from "./lib/supabaseClient.js";
-import { getSettings, upsertSettings, listTeam, addTeamMember, updateTeamMember, deleteTeamMember, listRecordsBetween, addRecord, deleteRecord } from "./lib/db.js";
+import { getSettings, upsertSettings, listTeam, addTeamMember, updateTeamMember, deleteTeamMember, listRecordsBetween, addRecord, deleteRecord, listCategories, addCategory, deleteCategory } from "./lib/db.js";
 
 // Section glossy (verre)
 const GlossySection = ({ title, children, className = "" }) => (
@@ -99,6 +99,9 @@ export default function App() {
 
 /* =============== App privée : lecture/écriture Supabase =============== */
 function PrivateApp({ isAdmin }) {
+
+  const [view, setView] = useState("attendance"); // "attendance" | "categories"
+
 
   const canEdit = isAdmin;
   // 0) Defaults UI (si aucun "settings" en base)
@@ -238,140 +241,167 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
   </div>
 </header>
 
+<nav className="max-w-7xl mx-auto px-6 pt-4">
+  <div className="flex gap-2">
+    <button onClick={()=>setView("attendance")}
+      className={`glass rounded-xl px-3 py-2 text-sm ${view==="attendance"?"bg-white/10":"hover:bg-white/10"}`}>
+      Pointage
+    </button>
+    <button onClick={()=>setView("categories")}
+      className={`glass rounded-xl px-3 py-2 text-sm ${view==="categories"?"bg-white/10":"hover:bg-white/10"}`}>
+      Catégories
+    </button>
+  </div>
+</nav>
 
-      <main className="px-6 py-6 max-w-7xl mx-auto grid grid-cols-1 2xl:grid-cols-3 gap-6">
-        <div className="flex flex-col gap-6 2xl:col-span-1">
-          <GlossySection title="Paramètres">
-            <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">Année de départ
-                <input type="number" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.startYear}
-                  onChange={(e)=>setSettings(s=>({ ...s, startYear:Number(e.target.value||0) }))}/>
-              </label>
-              <label className="text-sm">Mois de départ
-                <select className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.startMonth0}
-                  onChange={(e)=>setSettings(s=>({ ...s, startMonth0:Number(e.target.value) }))}>
-                  {MONTHS_FR.map((m,i)=>(<option key={i} value={i}>{m}</option>))}
-                </select>
-              </label>
-              <label className="text-sm">Seuil retards → 1 absence
-                <input type="number" min={1} className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.tardyThreshold}
-                  onChange={(e)=>setSettings(s=>({ ...s, tardyThreshold:Math.max(1, Number(e.target.value||0)) }))}/>
-              </label>
-              <label className="text-sm">Avertissement à partir de
-                <input type="number" min={1} className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.warnThreshold}
-                  onChange={(e)=>setSettings(s=>({ ...s, warnThreshold:Math.max(1, Number(e.target.value||0)) }))}/>
-              </label>
-              <label className="text-sm">Jour de séance (hebdo)
-              <select
-                className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200"
-                value={settings.meetingWeekday}
-                onChange={(e)=>setSettings(s=>({ ...s, meetingWeekday: Number(e.target.value) }))}
-              >
-                {WEEKDAYS_FR.map((d,i)=><option key={i} value={i}>{d}</option>)}
-              </select>
-              </label>
 
-    <label className="flex items-center gap-2 col-span-2 text-sm">
-      <input
-        type="checkbox"
-        checked={settings.countRetardAsPresent}
-        onChange={(e)=>setSettings(s=>({ ...s, countRetardAsPresent: e.target.checked }))}
-      />
-      Compter les retards comme présence (pour le taux)
-    </label>
-              <label className="flex items-center gap-2 col-span-2 text-sm">
-                <input type="checkbox" checked={settings.excludeJustified}
-                  onChange={(e)=>setSettings(s=>({ ...s, excludeJustified: e.target.checked }))}/> Exclure les justifiés du calcul
-              </label>
-            </div>
-          </GlossySection>
+{view === "attendance" ? (
+  <main className="px-6 py-6 max-w-7xl mx-auto grid grid-cols-1 2xl:grid-cols-3 gap-6">
+    
+        {/* COLONNE 1 */}
+      <div className="flex flex-col gap-6 2xl:col-span-1">
+      <GlossySection title="Paramètres">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-sm">Année de départ
+            <input type="number" className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.startYear}
+              onChange={(e)=>setSettings(s=>({ ...s, startYear:Number(e.target.value||0) }))}/>
+          </label>
+          <label className="text-sm">Mois de départ
+            <select className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.startMonth0}
+              onChange={(e)=>setSettings(s=>({ ...s, startMonth0:Number(e.target.value) }))}>
+              {MONTHS_FR.map((m,i)=>(<option key={i} value={i}>{m}</option>))}
+            </select>
+          </label>
+          <label className="text-sm">Seuil retards → 1 absence
+            <input type="number" min={1} className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.tardyThreshold}
+              onChange={(e)=>setSettings(s=>({ ...s, tardyThreshold:Math.max(1, Number(e.target.value||0)) }))}/>
+          </label>
+          <label className="text-sm">Avertissement à partir de
+            <input type="number" min={1} className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={settings.warnThreshold}
+              onChange={(e)=>setSettings(s=>({ ...s, warnThreshold:Math.max(1, Number(e.target.value||0)) }))}/>
+          </label>
+          <label className="text-sm">Jour de séance (hebdo)
+          <select
+            className="mt-1 w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200"
+            value={settings.meetingWeekday}
+            onChange={(e)=>setSettings(s=>({ ...s, meetingWeekday: Number(e.target.value) }))}
+          >
+            {WEEKDAYS_FR.map((d,i)=><option key={i} value={i}>{d}</option>)}
+          </select>
+          </label>
 
-          <GlossySection title="Motifs (personnalisables)">
-            <div className="flex flex-wrap gap-2 mb-3">
-              {settings.reasons.map((r, idx) => (
-                <Chip key={idx} className="bg-indigo-50 text-indigo-700 border border-indigo-100">
-                  {r}
-                  <button className="ml-2 text-indigo-500 hover:text-rose-600"
-                    onClick={()=>setSettings(s=>({ ...s, reasons: s.reasons.filter((_,i)=>i!==idx) }))} title="Supprimer">×</button>
-                </Chip>
-              ))}
-            </div>
-            <AddReason onAdd={(label)=>label && setSettings(s=>({ ...s, reasons:[...s.reasons, label] }))} />
-          </GlossySection>
-
-          <GlossySection title="Équipe">
-            <TeamEditor team={team}
-              onAdd={addMember}
-              onUpdate={(idx, patch) => updateMember(team[idx].id, patch)}
-              onDelete={(idx) => deleteMember(team[idx].id)}
-            />
-          </GlossySection>
-
-          <GlossySection title="Export / Import (JSON local)">
-            <div className="flex items-center gap-2">
-              <IconBtn title="Exporter JSON" onClick={()=>{
-                const blob=new Blob([JSON.stringify({settings,team,records},null,2)],{type:"application/json"});
-                const url=URL.createObjectURL(blob); const a=document.createElement("a");
-                a.href=url; a.download="absences_retards_app.json"; a.click(); URL.revokeObjectURL(url);
-              }}>💾 Export JSON</IconBtn>
-              <label className="btn btn-subtle cursor-pointer">📥 Import JSON
-                <input type="file" accept="application/json" className="hidden"
-                  onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(String(r.result)); if(obj.settings) setSettings(obj.settings); if(obj.team) obj.team.forEach(async m=>await addTeamMember(m)); if(obj.records) alert("Import des enregistrements via Supabase à faire au cas par cas."); }catch{ alert("Fichier invalide"); } }; r.readAsText(f); e.currentTarget.value=""; }}/>
-              </label>
-            </div>
-          </GlossySection>
+<label className="flex items-center gap-2 col-span-2 text-sm">
+  <input
+    type="checkbox"
+    checked={settings.countRetardAsPresent}
+    onChange={(e)=>setSettings(s=>({ ...s, countRetardAsPresent: e.target.checked }))}
+  />
+  Compter les retards comme présence (pour le taux)
+</label>
+          <label className="flex items-center gap-2 col-span-2 text-sm">
+            <input type="checkbox" checked={settings.excludeJustified}
+              onChange={(e)=>setSettings(s=>({ ...s, excludeJustified: e.target.checked }))}/> Exclure les justifiés du calcul
+          </label>
         </div>
+      </GlossySection>
 
-        <div className="flex flex-col gap-6 2xl:col-span-2">
-          <GlossySection title="Saisie d'un pointage">
-            <AddRecordForm form={form} setForm={setForm} names={names} reasons={settings.reasons} onSubmit={submit}
-              canSubmit={canSubmit} />
-          </GlossySection>
+      <GlossySection title="Motifs (personnalisables)">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {settings.reasons.map((r, idx) => (
+            <Chip key={idx} className="bg-indigo-50 text-indigo-700 border border-indigo-100">
+              {r}
+              <button className="ml-2 text-indigo-500 hover:text-rose-600"
+                onClick={()=>setSettings(s=>({ ...s, reasons: s.reasons.filter((_,i)=>i!==idx) }))} title="Supprimer">×</button>
+            </Chip>
+          ))}
+        </div>
+        <AddReason onAdd={(label)=>label && setSettings(s=>({ ...s, reasons:[...s.reasons, label] }))} />
+      </GlossySection>
 
-          <GlossySection title={`Liste des enregistrements — ${current.label}`}>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <label className="text-sm">Mois/année :
-                <select className="ml-2 rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={selectedMonthIdx} onChange={(e)=>setSelectedMonthIdx(Number(e.target.value))}>
-                  {months.map((m, idx) => (<option key={idx} value={idx}>{m.label}</option>))}
-                </select>
-              </label>
-            </div>
-            <RecordsTable records={filtered} onDelete={removeRecord} />
-          </GlossySection>
+      <GlossySection title="Équipe">
+        <TeamEditor team={team}
+          onAdd={addMember}
+          onUpdate={(idx, patch) => updateMember(team[idx].id, patch)}
+          onDelete={(idx) => deleteMember(team[idx].id)}
+        />
+      </GlossySection>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <GlossySection title={`Tableau de bord — ${current.label}`} className="xl:col-span-2">
-              <Dashboard stats={statsByName} warnThreshold={settings.warnThreshold} />
-              <div className="h-72 mt-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={statsByName} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} interval={0} />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="eq" isAnimationActive>
-                      <LabelList dataKey="eq" position="top" />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </GlossySection>
+      <GlossySection title="Export / Import (JSON local)">
+        <div className="flex items-center gap-2">
+          <IconBtn title="Exporter JSON" onClick={()=>{
+            const blob=new Blob([JSON.stringify({settings,team,records},null,2)],{type:"application/json"});
+            const url=URL.createObjectURL(blob); const a=document.createElement("a");
+            a.href=url; a.download="absences_retards_app.json"; a.click(); URL.revokeObjectURL(url);
+          }}>💾 Export JSON</IconBtn>
+          <label className="btn btn-subtle cursor-pointer">📥 Import JSON
+            <input type="file" accept="application/json" className="hidden"
+              onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ const obj=JSON.parse(String(r.result)); if(obj.settings) setSettings(obj.settings); if(obj.team) obj.team.forEach(async m=>await addTeamMember(m)); if(obj.records) alert("Import des enregistrements via Supabase à faire au cas par cas."); }catch{ alert("Fichier invalide"); } }; r.readAsText(f); e.currentTarget.value=""; }}/>
+          </label>
+        </div>
+      </GlossySection>
+    </div>
+       {/* COLONNE 2 */}    
+    <div className="flex flex-col gap-6 2xl:col-span-2">
+      <GlossySection title="Saisie d'un pointage">
+        <AddRecordForm form={form} setForm={setForm} names={names} reasons={settings.reasons} onSubmit={submit}
+          canSubmit={canSubmit} />
+      </GlossySection>
 
-            <GlossySection title="Alertes (≥ seuil)">
-              {alerts.length === 0 ? (<p className="text-sm text-slate-600">Aucune alerte pour ce mois.</p>) : (
-                <ul className="space-y-2">
-                  {alerts.map((a) => (
-                    <motion.li key={a.name} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
-                      <div className="font-medium">{a.name}</div>
-                      <div className="text-sm">Équiv. absences : <b>{a.eq}</b></div>
-                    </motion.li>
-                  ))}
-                </ul>
-              )}
-            </GlossySection>
+      <GlossySection title={`Liste des enregistrements — ${current.label}`}>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label className="text-sm">Mois/année :
+            <select className="ml-2 rounded-xl border px-3 py-2 focus:outline-none focus:ring focus:ring-indigo-200" value={selectedMonthIdx} onChange={(e)=>setSelectedMonthIdx(Number(e.target.value))}>
+              {months.map((m, idx) => (<option key={idx} value={idx}>{m.label}</option>))}
+            </select>
+          </label>
+        </div>
+        <RecordsTable records={filtered} onDelete={removeRecord} />
+      </GlossySection>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <GlossySection title={`Tableau de bord — ${current.label}`} className="xl:col-span-2">
+          <Dashboard stats={statsByName} warnThreshold={settings.warnThreshold} />
+          <div className="h-72 mt-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={statsByName} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} interval={0} />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="eq" isAnimationActive>
+                  <LabelList dataKey="eq" position="top" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
-      </main>
+        </GlossySection>
+
+        <GlossySection title="Alertes (≥ seuil)">
+          {alerts.length === 0 ? (<p className="text-sm text-slate-600">Aucune alerte pour ce mois.</p>) : (
+            <ul className="space-y-2">
+              {alerts.map((a) => (
+                <motion.li key={a.name} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} className="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                  <div className="font-medium">{a.name}</div>
+                  <div className="text-sm">Équiv. absences : <b>{a.eq}</b></div>
+                </motion.li>
+              ))}
+            </ul>
+          )}
+        </GlossySection>
+      </div>
+    </div>
+    
+  </main>
+) : (
+  <main className="px-6 py-6 max-w-7xl mx-auto">
+    <CategoriesPage isAdmin={isAdmin} settings={settings} />
+  </main>
+)}
+
+
+
+      
+     
 
       <footer className="px-6 py-8 text-xs text-slate-600">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -546,3 +576,124 @@ function Dashboard({ stats, warnThreshold }) {
   );
 }
 function KPI({ title, value }) { return (<motion.div initial={{opacity:0, y:6, scale:.98}} animate={{opacity:1, y:0, scale:1}} transition={{duration:.35}} className="rounded-2xl border p-4 bg-white/80 backdrop-blur"><div className="text-xs text-slate-500">{title}</div><div className="text-2xl font-bold">{value}</div></motion.div>); }
+
+function CategoriesPage({ isAdmin, settings }) {
+  const [type, setType]   = useState("absence"); // "absence" | "retard"
+  const [dateISO, setDateISO] = useState(suggestNextMeetingDate(settings.meetingWeekday));
+  const [label, setLabel] = useState("");
+  const [notes, setNotes] = useState("");
+  const [rows, setRows]   = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { reload(); }, []);
+  async function reload() {
+    setLoading(true);
+    try {
+      const from = isoNDaysAgo(180);           // 6 mois d’historique
+      const data = await listCategories({ from });
+      setRows(data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }
+
+  async function onAdd() {
+    if (!isAdmin) { alert("Mode invité : lecture seule"); return; }
+    if (!dateISO) return alert("Choisis une date de séance.");
+    try {
+      await addCategory({ type, meeting_date: dateISO, label, notes });
+      setLabel(""); setNotes("");
+      await reload();
+    } catch (e) { console.error(e); alert("Échec d’enregistrement."); }
+  }
+
+  async function onDelete(id) {
+    if (!isAdmin) { alert("Mode invité : lecture seule"); return; }
+    if (!confirm("Supprimer cette catégorie ?")) return;
+    try { await deleteCategory(id); await reload(); }
+    catch (e) { console.error(e); alert("Échec de suppression."); }
+  }
+
+  return (
+    <div className="space-y-6">
+      <GlossySection title="Créer une catégorie (par séance)">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <label className="text-sm">
+            Type
+            <select className="mt-1 w-full rounded-xl border px-3 py-2" value={type} onChange={e=>setType(e.target.value)}>
+              <option value="absence">Absence</option>
+              <option value="retard">Retard</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            Date de réunion
+            <input type="date" className="mt-1 w-full rounded-xl border px-3 py-2"
+              value={dateISO} onChange={e=>setDateISO(e.target.value)} />
+          </label>
+          <label className="text-sm md:col-span-2">
+            Libellé (optionnel)
+            <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="ex. Absence non justifiée"
+              value={label} onChange={e=>setLabel(e.target.value)} />
+          </label>
+          <div className="md:col-span-1 flex items-end">
+            <button onClick={onAdd} disabled={!isAdmin}
+              className={`btn ${isAdmin ? "btn-primary" : "btn-subtle cursor-not-allowed"}`}>Ajouter</button>
+          </div>
+          <label className="text-sm md:col-span-5">
+            Notes
+            <input className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Optionnel"
+              value={notes} onChange={e=>setNotes(e.target.value)} />
+          </label>
+        </div>
+      </GlossySection>
+
+      <GlossySection title="Historique des catégories">
+        {loading ? <div className="text-sm text-slate-300/80">Chargement…</div> : (
+          rows.length === 0 ? <div className="text-sm text-slate-300/80">Aucune donnée.</div> : (
+            <div className="overflow-auto border rounded-2xl">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-indigo-50/10">
+                    <th className="p-2 text-left">Date</th>
+                    <th className="p-2 text-left">Type</th>
+                    <th className="p-2 text-left">Libellé</th>
+                    <th className="p-2 text-left">Notes</th>
+                    <th className="p-2 text-left">Créé le</th>
+                    <th className="p-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(r => (
+                    <tr key={r.id} className="border-t hover:bg-white/5">
+                      <td className="p-2 whitespace-nowrap">{fmtDate(r.meeting_date)}</td>
+                      <td className="p-2 capitalize">{r.type}</td>
+                      <td className="p-2">{r.label || ""}</td>
+                      <td className="p-2">{r.notes || ""}</td>
+                      <td className="p-2 whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="p-2 text-right">
+                        {isAdmin && <button className="text-rose-400 hover:underline" onClick={()=>onDelete(r.id)}>Supprimer</button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+      </GlossySection>
+    </div>
+  );
+}
+
+// === Helpers pour l’onglet Catégories ===
+function isoNDaysAgo(n){
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0,10);
+}
+function suggestNextMeetingDate(weekday){ // weekday: 0=dimanche … 6=samedi
+  const today = new Date();
+  const cur = today.getDay();
+  let delta = (weekday - cur + 7) % 7;
+  if (delta === 0) delta = 7; // si aujourd’hui est déjà le jour de séance → prendre la semaine pro
+  const target = new Date(today); target.setDate(today.getDate() + delta);
+  return target.toISOString().slice(0,10);
+}
