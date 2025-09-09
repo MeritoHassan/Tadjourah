@@ -69,7 +69,16 @@ function meetingDatesInMonth(year, month0, weekday0) {
 
 const MONTHS_FR = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 const fmtDate = (iso) => { if (!iso) return ""; const d = new Date(iso); const dd = String(d.getDate()).padStart(2,"0"); const mm = String(d.getMonth()+1).padStart(2,"0"); const yyyy = d.getFullYear(); return `${dd}/${mm}/${yyyy}`; };
-const inferMonthCycle = (startYear, startMonth0) => Array.from({length:12},(_,i)=>{ const m=(startMonth0+i)%12; const y=startYear+Math.floor((startMonth0+i)/12); return {label:`${MONTHS_FR[m].slice(0,3)} ${y}`, year:y, month0:m}; });
+function inferMonthCycle(startYear, startMonth0){
+  const y0 = Number.isFinite(+startYear) ? +startYear : new Date().getFullYear();
+  const m0raw = Number.isFinite(+startMonth0) ? +startMonth0 : new Date().getMonth();
+  const m0 = Math.min(11, Math.max(0, m0raw | 0));
+  return Array.from({ length: 12 }, (_, i) => {
+    const m = (m0 + i) % 12;
+    const y = y0 + Math.floor((m0 + i) / 12);
+    return { label: `${MONTHS_FR[m].slice(0, 3)} ${y}`, year: y, month0: m };
+  });
+} 
 const statusColor = (s) => s==="Présent"?"bg-emerald-100 text-emerald-800":s==="Absent"?"bg-rose-100 text-rose-800":s==="Retard"?"bg-amber-100 text-amber-800":s==="Vacances"?"bg-sky-100 text-sky-800":"bg-gray-100 text-gray-700";
 const Chip = ({ children, className = "" }) => (<span className={`pill ${className}`}>{children}</span>);
 const Section = ({ title, children, className = "" }) => (<motion.div initial={{opacity:0,y:12,scale:.98}} animate={{opacity:1,y:0,scale:1}} transition={{duration:.35}} className={`card p-4 ${className}`}><div className="text-sm font-semibold text-slate-700 mb-3">{title}</div>{children}</motion.div>);
@@ -143,8 +152,16 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
       setLoading(true);
       try {
         const s = await getSettings();
-        if (s) setSettings(s); 
-        else {
+        if (s) {
+          const merged = { ...DEFAULT_SETTINGS, ...s };
+          if (!Array.isArray(merged.reasons)) merged.reasons = DEFAULT_SETTINGS.reasons;
+          if (!Number.isFinite(+merged.startYear))  merged.startYear  = DEFAULT_SETTINGS.startYear;
+          if (!Number.isFinite(+merged.startMonth0)) merged.startMonth0 = DEFAULT_SETTINGS.startMonth0;
+          if (!Number.isFinite(+merged.meetingWeekday)) merged.meetingWeekday = DEFAULT_SETTINGS.meetingWeekday;
+          if (!Number.isFinite(+merged.tardyThreshold) || merged.tardyThreshold < 1) merged.tardyThreshold = DEFAULT_SETTINGS.tardyThreshold;
+          if (!Number.isFinite(+merged.warnThreshold)  || merged.warnThreshold  < 1) merged.warnThreshold  = DEFAULT_SETTINGS.warnThreshold;
+          setSettings(merged);
+                }   else {
           if (isAdmin) await upsertSettings(DEFAULT_SETTINGS);
           else setSettings(DEFAULT_SETTINGS); // invité : local only
         }
@@ -320,7 +337,7 @@ const meetingSet = React.useMemo(() => new Set(meetingDates), [meetingDates]);
 
       <GlossySection title="Motifs (personnalisables)">
         <div className="flex flex-wrap gap-2 mb-3">
-          {settings.reasons.map((r, idx) => (
+          {(settings.reasons || [])((r, idx) => (
             <Chip key={idx} className="bg-indigo-50 text-indigo-700 border border-indigo-100">
               {r}
               <button className="ml-2 text-indigo-500 hover:text-rose-600"
@@ -777,4 +794,3 @@ function suggestNextMeetingDate(weekday){ // weekday: 0=dimanche … 6=samedi
   const target = new Date(today); target.setDate(today.getDate() + delta);
   return target.toISOString().slice(0,10);
 }
-v
