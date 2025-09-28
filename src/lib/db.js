@@ -1,12 +1,12 @@
 // src/lib/db.js
 import { supabase } from "./supabaseClient.js";
 
-/** Change les noms si tes tables ont d’autres noms */
+/** Noms de tables (si tu as d’autres noms, adapte ici) */
 const TABLES = {
   settings: "settings",
   team: "team",
   records: "records",
-  meeting_categories: "meeting_categories",
+  meeting_categories: "meeting_categories", // si tu l’utilises
 };
 
 /* -------------------- SETTINGS -------------------- */
@@ -76,18 +76,11 @@ export async function deleteTeamMember(id) {
 }
 
 /* -------------------- RECORDS -------------------- */
-// utilitaire interne: requête avec colonne de date choisie
-async function queryByDateCol(dateCol, startISO, endISO) {
-  let q = supabase
-    .from(TABLES.records)
-    .select("*")
-    .order(dateCol, { ascending: false })
-    .order("created_at", { ascending: false });
-  if (startISO) q = q.gte(dateCol, startISO);
-  if (endISO)   q = q.lte(dateCol, endISO);
-  return q;
-}
-
+/**
+ * listRecordsBetween : essaie d’abord la colonne "dateISO", puis "date"
+ * (et avec/sans "created_at") pour s’adapter à ton schéma actuel.
+ * Retourne toujours des rows avec une propriété "dateISO" normalisée.
+ */
 export async function listRecordsBetween(startISO, endISO) {
   const tries = [
     { col: "dateISO", withCreated: true },
@@ -95,7 +88,6 @@ export async function listRecordsBetween(startISO, endISO) {
     { col: "date",    withCreated: true },
     { col: "date",    withCreated: false },
   ];
-
   let lastErr = null;
 
   for (const t of tries) {
@@ -104,30 +96,25 @@ export async function listRecordsBetween(startISO, endISO) {
         .from(TABLES.records)
         .select("*")
         .order(t.col, { ascending: false });
-      if (t.withCreated) q = q.order("created_at", { ascending: false }); // si elle existe
+      if (t.withCreated) q = q.order("created_at", { ascending: false });
 
       if (startISO) q = q.gte(t.col, startISO);
       if (endISO)   q = q.lte(t.col, endISO);
 
       const { data, error } = await q;
       if (error) {
-        // si colonne inconnue → on essaie la combinaison suivante
-        if (error.code === "42703") { lastErr = error; continue; }
-        // autre erreur → on sort direct
+        if (error.code === "42703") { lastErr = error; continue; } // colonne inconnue
         throw error;
       }
-      // normalise pour l'app : toujours fournir .dateISO
       return (data ?? []).map(r => ({ ...r, dateISO: r.dateISO || r.date }));
     } catch (e) {
       if (e.code === "42703") { lastErr = e; continue; }
       throw e;
     }
   }
-  // Si on arrive ici, toutes les tentatives ont échoué
   if (lastErr) throw lastErr;
   return [];
 }
-
 
 export async function addRecord(viewRecord) {
   const { data: u } = await supabase.auth.getUser();
@@ -137,15 +124,15 @@ export async function addRecord(viewRecord) {
     is_public: true,
   };
 
-  // Tente d’insérer tel quel (avec dateISO si présent)
+  // Essai 1 : insère tel quel (avec dateISO si existe)
   let { data, error } = await supabase
     .from(TABLES.records)
     .insert(base)
     .select()
     .single();
 
+  // Si "dateISO" n'existe pas dans la table → re-tente avec "date"
   if (error && error.code === "42703") {
-    // La colonne dateISO n’existe pas -> bascule sur "date"
     const payload = { ...base };
     if (payload.dateISO && !payload.date) {
       payload.date = payload.dateISO;
@@ -166,7 +153,7 @@ export async function deleteRecord(id) {
   if (error) throw error;
 }
 
-/* --------- CATEGORIES (absence/retard par séance) --------- */
+/* --------- (Optionnel) Catégories de séances --------- */
 export async function addCategory({ type, meeting_date, label, notes }) {
   const { data: u } = await supabase.auth.getUser();
   const payload = {
